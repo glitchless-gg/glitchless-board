@@ -131,7 +131,8 @@ export async function session({ version = '0' } = {}) {
         setTimeout(() => {
           if (pending.has(n)) {
             pending.delete(n);
-            reject(new Error(`Codex gave no answer to ${method}.`));
+            // "unknown" marks an outcome nobody can be sure of: the request went out and no answer came back.
+            reject(Object.assign(new Error(`Codex gave no answer to ${method}.`), { unknown: true }));
           }
         }, ms).unref?.();
       }),
@@ -203,7 +204,8 @@ export const queueMessage = (threadId, text) =>
   new Promise((resolve, reject) => {
     execFile(codexBin(), ['queue', '--thread', threadId, '--message', text, '--resume'], { encoding: 'utf8', timeout: 90000 }, (err, stdout, stderr) => {
       const out = `${stdout || ''}${stderr || ''}`.trim();
-      if (err && !/queued/i.test(out)) reject(new Error(`codex queue: ${(out || err.message).slice(0, 300)}`));
+      // Ended by the time limit: the message may or may not be in the queue.
+      if (err && !/queued/i.test(out)) reject(Object.assign(new Error(`codex queue: ${(out || err.message).slice(0, 300)}`), { unknown: !!err.killed }));
       else resolve(out);
     });
   });

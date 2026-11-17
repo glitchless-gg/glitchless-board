@@ -20,7 +20,7 @@ import { Problem, readJson, titleFrom } from './util.js';
 
 export const CONFIG_FILE = 'glitchless.board.json';
 export const DEFAULT_PORT = 8792;
-/** The name the board is saved under in a harness. An underscore, which every harness takes in a server name. */
+/** The name the board is saved under in a harness. An underscore, not a dash: the form Claude Code's rules and Codex's documented examples use. */
 export const SERVER_NAME = 'glitchless_board';
 export const KINDS = ['pictures', 'captures', 'sounds'];
 

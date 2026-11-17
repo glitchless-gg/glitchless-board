@@ -14,12 +14,17 @@ const KNIGHT = 'Characters/knight.png';
 
 let fake;
 let board = null;
+// From the first line of this file, the hooks point at nothing: no path here can reach a real codex, even if
+// the stand-in fails to start.
 const saved = {};
+for (const key of ['GLITCHLESS_BOARD_CODEX', 'GLITCHLESS_BOARD_CODEX_SOCKET']) {
+  saved[key] = process.env[key];
+  process.env[key] = '/nowhere/no-codex-here';
+}
 
 before(async () => {
   if (skip) return;
   fake = await fakeCodex(scratch('codex'));
-  for (const key of ['GLITCHLESS_BOARD_CODEX', 'GLITCHLESS_BOARD_CODEX_SOCKET']) saved[key] = process.env[key];
   process.env.GLITCHLESS_BOARD_CODEX = fake.bin;
   process.env.GLITCHLESS_BOARD_CODEX_SOCKET = fake.sock;
 });
@@ -205,6 +210,49 @@ test("a take posted through a thread's own address is linked to that thread", { 
   const read = (await b.call('/mcp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'board_read', arguments: { item: KNIGHT } } }) })).json();
   assert.equal(read.result.content[0].text.includes(THREAD), false);
   assert.equal(read.result.content[0].text.includes(key), false);
+});
+
+/** A client whose turn fails the given way, in place of the stand-in daemon. */
+const failingClient = (error) => ({
+  failing: true,
+  session: async () => ({ close() {} }),
+  lastTurn: async () => ({ status: 'idle', turns: 0 }),
+  boardConfig: (url) => ({ url }),
+  resumeThread: async () => ({}),
+  queueMessage: async () => {
+    throw new Error('the queue should not be used here');
+  },
+  runTurn() {
+    return this.failing ? { started: Promise.reject(error), done: new Promise(() => {}) } : { started: Promise.resolve({}), done: Promise.resolve({ how: 'completed', reply: 'ok', tools: [] }) };
+  },
+});
+
+test('a send Codex never confirmed still counts as sent, so the verdict cannot go out twice', { skip }, async () => {
+  const client = failingClient(Object.assign(new Error('Codex gave no answer to turn/start.'), { unknown: true }));
+  const b = await adopted({ codexOn: true, codex: client, limits: { sendsPerRun: 1, pollMs: 40 } });
+  await b.verdict({ item: KNIGHT, v: 'redo' });
+  const r = await press(b, { item: KNIGHT });
+  assert.equal(r.status, 409);
+  assert.match(r.json().error, /did not confirm the send .*counts as sent/);
+  assert.deepEqual(events(b, 'sent').map((e) => [e.verdict, e.door, e.how]), [['redo', 'page', 'not confirmed: Codex gave no answer to turn/start.']]);
+  client.failing = false;
+  assert.match((await press(b, { item: KNIGHT })).json().error, /still answering|already sent/);
+  await b.verdict({ item: KNIGHT, v: 'keep' });
+  assert.match((await press(b, { item: KNIGHT })).json().error, /still answering|its limit/);
+  assert.equal(events(b, 'sent').length, 1);
+});
+
+test('a send Codex refused is not counted, and can be tried again', { skip }, async () => {
+  const client = failingClient(new Error('turn/start: the model is overloaded'));
+  const b = await adopted({ codexOn: true, codex: client, limits: { sendsPerRun: 1, pollMs: 40 } });
+  await b.verdict({ item: KNIGHT, v: 'redo' });
+  const r = await press(b, { item: KNIGHT });
+  assert.equal(r.status, 409);
+  assert.match(r.json().error, /the model is overloaded/);
+  assert.equal(events(b, 'sent').length, 0);
+  client.failing = false;
+  assert.equal((await press(b, { item: KNIGHT })).status, 200);
+  assert.equal(events(b, 'sent').length, 1);
 });
 
 test('adopt checks what it is given, and writes through the cli door', { skip }, () => {

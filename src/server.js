@@ -91,7 +91,8 @@ export function createServer({ config, record = openRecord(config.stateDir), cod
       if (req.method === 'GET' && pathname === '/') {
         const nonce = crypto.randomBytes(16).toString('base64');
         const boot = JSON.stringify({ token, project: config.name, port, version, server: SERVER_NAME }).replace(/</g, '\\u003c');
-        const html = fs.readFileSync(path.join(UI, 'index.html'), 'utf8').replace('/*BOOT*/null', boot).replaceAll('__NONCE__', nonce);
+        // Functions, so a "$" in a game's name is put in as it is.
+        const html = fs.readFileSync(path.join(UI, 'index.html'), 'utf8').replace('/*BOOT*/null', () => boot).replaceAll('__NONCE__', () => nonce);
         res.writeHead(200, {
           'content-type': 'text/html; charset=utf-8',
           'cache-control': 'no-store',
@@ -164,9 +165,10 @@ export function createServer({ config, record = openRecord(config.stateDir), cod
           timeout: Math.max(1, Math.min(86400, Number(q.get('timeout')) || 3600)),
           settle: Math.max(0, Math.min(10, Number(q.get('settle') ?? 2))),
         });
-        req.on('close', () => {
+        // The caller went away before the answer: the wait ends, and what arrives next stays held for that name.
+        res.on('close', () => {
           clearInterval(beat);
-          wait.cancel();
+          if (!res.writableEnded) wait.cancel();
         });
         const out = await wait.promise;
         clearInterval(beat);
@@ -179,7 +181,11 @@ export function createServer({ config, record = openRecord(config.stateDir), cod
           return res.end();
         }
         const body = await readJsonBody(req);
-        const ctx = { door: 'mcp', thread: board.threadOfKey(url.searchParams.get('k')) };
+        const gone = [];
+        res.on('close', () => {
+          if (!res.writableEnded) for (const fn of gone) fn();
+        });
+        const ctx = { door: 'mcp', thread: board.threadOfKey(url.searchParams.get('k')), onClose: (fn) => gone.push(fn) };
         const out = await mcp(body, ctx);
         if (out) return json(res, 200, out);
         res.writeHead(202);

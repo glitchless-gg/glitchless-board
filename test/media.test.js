@@ -168,3 +168,21 @@ test('the page loads nothing from anywhere else and plays nothing by itself', as
   assert.equal((await board.call('/../package.json')).status, 404);
   assert.equal((await board.call('/index.html')).status, 404);
 });
+
+test("a game's name is put into the page as text, whatever it holds", async () => {
+  const dir = sampleGame();
+  const file = path.join(dir, 'glitchless.board.json');
+  const name = "Pay$& $' $` </script><img src=x onerror=alert(1)>";
+  fs.writeFileSync(file, JSON.stringify({ ...JSON.parse(fs.readFileSync(file, 'utf8')), name }));
+  const other = await serve(dir);
+  try {
+    const html = (await other.call('/')).text;
+    const boot = JSON.parse(/const BOOT = (\{.*\});\n/.exec(html)[1]);
+    assert.equal(boot.project, name);
+    assert.equal(html.includes('</script><img'), false);
+    assert.equal((html.match(/<\/script>/g) || []).length, 1);
+    assert.equal((await other.call('/api/state')).json().project, name);
+  } finally {
+    await other.close();
+  }
+});

@@ -171,6 +171,7 @@ What is held, and for whom:
 - A name that has waited before gets everything since its last delivery, whether or not another agent was told in the meantime.
 - A name that has never waited gets the verdicts nobody has been told yet, and every message ever left for it.
 - Several clicks on one item arrive as its last state. A burst of clicks arrives together, after two seconds of quiet (`--settle`).
+- A wait whose caller goes away (a tool call that timed out, a command that was stopped) delivers nothing, so what arrives next is still held for that name. `wait --since SEQ` hears everything after a record line again, if an answer was lost on the way.
 
 The skill tells an agent how to use all this: `glitchless-board skill --install` copies it to `~/.claude/skills`, `~/.codex/skills` and `~/.cursor/skills` (whichever exist), and `glitchless-board skill` prints it.
 
@@ -194,7 +195,7 @@ npx glitchless-board init --claude
 
 Then restart the harness, because a running app does not see a server added after it started. Use a local session: a cloud session runs on another machine and cannot reach a board on your computer.
 
-The server is saved under the name `glitchless_board`, with an underscore, which all three harnesses accept in a server name.
+The server is saved under the name `glitchless_board`, with an underscore. Claude Code's permission rules and the examples in Codex's documentation use underscores in server names. Cursor's documentation does not say, and this name has not been tried there.
 
 ### Claude Code
 
@@ -287,7 +288,7 @@ The guards:
 
 - The page sends only the item's id. The board finds the thread and writes the text.
 - A send goes only to a thread you adopted. `adopt` runs only while the board is stopped, and there is no way to add a thread over the network.
-- One send per verdict, never while the thread is busy, at most ten a run, and every send is in the record.
+- One send per verdict, never while the thread is busy, at most ten a run, and every send is in the record. A send Codex was asked for but never confirmed counts as sent, so the same verdict cannot go out twice.
 - The turn asks Codex to read the item back and say what it would change. It never asks for a new take, because making one could spend credits. You say so in the thread if you want one.
 
 The board first tries to start the turn itself. If the Codex app has the thread open, that is refused, and the verdict goes into Codex's own queue for the thread (`codex queue`), which the app then runs. `--send-via queue` always uses the queue. `glitchless-board codex probe` checks that the board can reach Codex's daemon, and sends nothing.
@@ -321,6 +322,19 @@ On the prototype, a press delivered a verdict to a Codex thread, Codex read it b
 | `guide` | This file. |
 
 Run them in the game's folder or anywhere inside it. `--json` prints results as JSON. `--port` overrides the config's port. Exit codes: 0 done, 3 a wait timed out with nothing, 2 something went wrong or no board is running.
+
+## When it goes wrong
+
+| It says | What to do |
+| --- | --- |
+| No glitchless.board.json | Run the command in the game's folder, or run `init` there first. |
+| No board is answering on port N | Start it in the game's folder: `glitchless-board serve`. |
+| Port N is taken | Another board, or another program, has that port. Set another `"port"` in the config, then run `init` again with the harness flags so their saved address follows. |
+| A board is already running for this project | Use that one, or stop it first. |
+| The harness does not list the board's tools | Restart the harness. Check it is a local session, and that the saved address has the board's port. |
+| 403, "This board answers this computer only" | The address must be exactly `http://127.0.0.1:<port>` or `http://localhost:<port>`. Another host name, a proxy or a tunnel is refused. |
+| Not posted. Each file must be a picture or sound... | Save the file inside one of the folders the config names, then post it. |
+| Stop the board first | `adopt` writes to the record, which a running board holds in memory. |
 
 ## Limits
 

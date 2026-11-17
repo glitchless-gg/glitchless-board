@@ -245,11 +245,14 @@ export function createBoard({ config, record, codex = null, codexOn = config.cod
       if (pendingVerdicts(w.sinceV).last || pendingMessages(w).length) nudge(w);
       tell({ type: 'waiters', waiting: waitingNames() });
     });
+    // The caller went away. Nothing is delivered and the name's place is not moved, so whatever arrives
+    // next is still held for it.
     const cancel = () => {
       if (!waiters.has(w)) return;
       waiters.delete(w);
       clearTimeout(w.timer);
       clearTimeout(w.settleTimer);
+      w.done({ as: who, verdicts: [], messages: [], timed_out: true, cancelled: true });
       tell({ type: 'waiters', waiting: waitingNames() });
     };
     return { promise, cancel };
@@ -393,8 +396,10 @@ export function createBoard({ config, record, codex = null, codexOn = config.cod
       return { left: e.seq, for: whom, they_are_waiting_now: reached, note: reached ? 'They are waiting on the board and will get it now.' : 'Nobody by that name is waiting. It is held for them. It starts and wakes nobody.' };
     },
 
-    board_wait({ as = 'agent', timeout_s = 45 } = {}) {
-      return startWait({ name: as, timeout: Math.max(1, Math.min(lim.waitTool, Number(timeout_s) || 45)), settle: 2 }).promise;
+    board_wait({ as = 'agent', timeout_s = 45 } = {}, ctx = {}) {
+      const wait = startWait({ name: as, timeout: Math.max(1, Math.min(lim.waitTool, Number(timeout_s) || 45)), settle: 2 });
+      ctx.onClose?.(wait.cancel); // a harness that gives up on the call must not be handed a verdict it will never read
+      return wait.promise;
     },
   };
 
@@ -454,6 +459,7 @@ export function createBoard({ config, record, codex = null, codexOn = config.cod
     sendsThisRun++;
     let s = null;
     let recorded = false;
+    const sentLine = (how) => record.append({ type: 'sent', item, thread, verdict: v.verdict, verdict_seq: v.seq, note: v.note || '', to: 'codex', how, by: 'owner', door: 'page' });
     try {
       const client = codex || (await import('./codex.js'));
       s = await client.session();
@@ -483,7 +489,7 @@ export function createBoard({ config, record, codex = null, codexOn = config.cod
         if (!/active writer/i.test(err.message)) throw err;
         how = `codex queue: ${String(await client.queueMessage(thread, text)).slice(0, 1500) || 'queued'}`;
       }
-      const sent = record.append({ type: 'sent', item, thread, verdict: v.verdict, verdict_seq: v.seq, note: v.note || '', to: 'codex', how, by: 'owner', door: 'page' });
+      const sent = sentLine(how);
       recorded = true;
       sending.delete(item);
       log(`Sent ${item} to its Codex thread: ${how}`);
@@ -508,10 +514,17 @@ export function createBoard({ config, record, codex = null, codexOn = config.cod
       return { ok: true, seq: sent.seq, how };
     } catch (err) {
       sending.delete(item);
-      if (!recorded) sendsThisRun--; // nothing went out: the press does not count against the run
       try {
         s?.close();
       } catch {}
+      if (!recorded && err.unknown) {
+        // Codex was asked and did not answer in time, so the turn may be running. It counts as sent: the same
+        // verdict is not sent twice, and the press stays counted.
+        sentLine(`not confirmed: ${String(err.message).slice(0, 300)}`);
+        tell({ type: 'send', item, send: sendState(item) });
+        throw new Error(`Codex did not confirm the send (${err.message}) It may have gone through, so this verdict counts as sent.`);
+      }
+      if (!recorded) sendsThisRun--; // Codex refused or was not reached: nothing went out, so the press does not count
       throw err;
     }
   }
