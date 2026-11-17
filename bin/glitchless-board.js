@@ -45,6 +45,7 @@ Send to Codex (optional)
   codex probe                    can the board reach Codex's daemon (read-only, spends nothing)
 
 Other
+  prompt                         print the set-up prompt to paste into your coding agent
   skill [--install]              print the agent skill, or copy it where Claude Code, Codex and Cursor look
   guide                          the full reference (README)
   --port P                       the board's port, when it is not the one in glitchless.board.json
@@ -167,6 +168,9 @@ async function main(argv) {
       show(r, `Reached Codex's daemon. It lists ${r.threads_on_first_page} threads on its first page. Nothing was sent.`);
       return 0;
     }
+    case 'prompt':
+      console.log(board.setupPrompt());
+      return 0;
     case 'skill':
       skill(!!o.install, log);
       return 0;

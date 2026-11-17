@@ -7,7 +7,7 @@ description: Put game art, sounds and captures in front of the user for a Keep o
 
 One small local server per game project. It holds one record of three things: things to judge (pictures, sounds, captures), the user's verdicts on them (Keep, Redo, a pick among takes, a note), and short messages agents leave for each other. The user judges on a local page. You use MCP tools, and a `wait` command that ends when something arrives.
 
-Run it with `npx -y glitchless-board <command>` (Node 20+), or `glitchless-board <command>` if it is installed globally. Run commands in the game's root folder, where `glitchless.board.json` is. `glitchless-board guide` prints the full reference.
+Run it with `npx -y glitchless-board <command>` (Node 20+), or `glitchless-board <command>` if it is installed globally. Run commands in the game's root folder, where `glitchless.board.json` is. `glitchless-board guide` prints the full reference, and `glitchless-board prompt` prints a set-up prompt the user can paste into any coding agent.
 
 ## 1. Check the board is running
 

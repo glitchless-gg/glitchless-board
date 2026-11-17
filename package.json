@@ -30,6 +30,7 @@
     "src",
     "ui",
     "docs/record.md",
+    "docs/agent-setup-prompt.md",
     "SKILL.md",
     "NOTICE.md"
   ],

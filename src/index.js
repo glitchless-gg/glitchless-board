@@ -16,3 +16,4 @@ export { waitOnBoard, boardStatus, WAIT_EXIT } from './wait.js';
 export { initProject, planSections, harnessPlans, mergeInto, HARNESS_FLAGS } from './init.js';
 export { adoptThread } from './adopt.js';
 export { writeSample, sampleFiles, encodePng, encodeWav } from './sample.js';
+export { setupPrompt, promptIn, PROMPT_FILE } from './prompt.js';
