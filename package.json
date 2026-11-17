@@ -17,6 +17,14 @@
     "game-audio"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/glitchless-gg/glitchless-board.git"
+  },
+  "homepage": "https://github.com/glitchless-gg/glitchless-board#readme",
+  "bugs": {
+    "url": "https://github.com/glitchless-gg/glitchless-board/issues"
+  },
   "type": "module",
   "main": "./src/index.js",
   "exports": {
