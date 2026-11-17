@@ -341,6 +341,7 @@ export function createBoard({ config, record, codex = null, codexOn = config.cod
       if (!name) throw new Error('board_post needs a title.');
       const who = cleanName(by) || 'agent';
       if (RESERVED_NAMES.includes(who)) throw new Error(`"${who}" is not a name an agent can post as. Use your own name in by.`);
+      project.fresh(); // the file may have been made a moment ago
       const v = view();
       const asked = Array.isArray(files) ? files : [];
       if (!asked.length || asked.length > lim.files) throw new Error(`board_post needs 1 to ${lim.files} files.`);

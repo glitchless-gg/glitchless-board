@@ -272,9 +272,8 @@ export function initProject(dir, { name, port, force = false, apply = [], home, 
     for (const line of [...plan.why, ...plan.then]) log(`  ${line}`);
   }
   log('');
+  log('Start the board with: glitchless-board serve');
   log('Then restart the harness, so it reads the new server. A running app does not see a server added after it started.');
   log('Use a local session. A cloud session runs on another machine and cannot reach a board on this computer.');
-  log('');
-  log('Start the board with: glitchless-board serve');
   return { file, wrote, config, applied };
 }

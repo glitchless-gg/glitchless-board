@@ -5,6 +5,8 @@ import path from 'node:path';
 import { openRecord } from '../src/index.js';
 import { boardOver, cleanUp, sampleGame, scratch, waitAs } from './helpers.js';
 
+const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+
 after(cleanUp);
 
 const KNIGHT = 'Characters/knight.png';
@@ -154,4 +156,24 @@ test('a take posted after a Redo puts the item back to waiting, and a pick names
   assert.throws(() => board.giveVerdict({ item: KNIGHT, v: 'pick', take: 9 }), /no such take/);
   assert.throws(() => board.giveVerdict({ item: KNIGHT, v: 'approve' }), /keep, redo or pick/);
   assert.throws(() => board.giveVerdict({ item: 'Characters/nobody.png', v: 'keep' }), /No such item/);
+});
+
+test('one list call counts every section, even one with nothing in it', () => {
+  const dir = sampleGame();
+  const file = path.join(dir, 'glitchless.board.json');
+  const config = readJson(file);
+  fs.mkdirSync(path.join(dir, 'audio', 'voice'));
+  config.sections.push({ title: 'Voices', kind: 'sounds', folder: 'audio/voice' }, { title: 'Later', kind: 'pictures', folder: 'art/not-yet' });
+  fs.writeFileSync(file, JSON.stringify(config));
+  const { board } = boardOver(dir);
+  board.giveVerdict({ item: KNIGHT, v: 'keep' });
+  board.giveVerdict({ item: MAGE, v: 'redo' });
+  const zero = { waiting: 0, keep: 0, redo: 0 };
+  for (const state of ['waiting', 'keep', 'redo', 'all']) {
+    const list = board.tools.board_list({ state, group: 'Tiles' });
+    assert.deepEqual(Object.keys(list.by_group), ['Screens', 'Characters', 'Tiles', 'Sound effects', 'Music', 'Voices', 'Later'], state);
+    assert.deepEqual(list.by_group.Characters, { waiting: 3, keep: 1, redo: 1 });
+    assert.deepEqual([list.by_group.Voices, list.by_group.Later], [zero, zero]);
+  }
+  assert.deepEqual(board.tools.board_list({ state: 'keep' }).items, [{ item: KNIGHT, group: 'Characters', state: 'keep', takes: 1 }]);
 });

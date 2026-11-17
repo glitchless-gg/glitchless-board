@@ -78,10 +78,9 @@ test('without a flag, init changes no harness: it only shows what each needs', (
   assert.match(out, /"Mcp\(glitchless_board:\*\)"/);
   assert.match(out, /cursor-agent mcp enable glitchless_board/);
   // It ends by saying to restart, and that the session must be local.
-  const tail = out.slice(out.indexOf('Then restart the harness'));
-  assert.match(tail, /restart the harness/);
-  assert.match(tail, /local session/);
-  assert.match(tail, /cloud session/);
+  const last = out.trimEnd().split('\n').slice(-2);
+  assert.match(last[0], /^Then restart the harness/);
+  assert.match(last[1], /^Use a local session\. A cloud session .* cannot reach a board on this computer\.$/);
 });
 
 test('what init shows for a harness is exactly what it writes', () => {

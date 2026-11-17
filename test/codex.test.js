@@ -76,7 +76,14 @@ test('a send goes only to a thread the board was told to adopt', { skip }, async
   assert.equal(r.status, 409);
   assert.match(r.json().error, /did not come from a Codex thread the board knows/);
   assert.equal(await sendStateOf(b, 'Characters/mage.png'), undefined); // no button on that card
+  // Even a record that names another thread for an item does not make that thread one the board sends to.
+  b.record.append({ type: 'link', item: 'Characters/mage.png', thread: OTHER, door: 'cli' });
+  const forged = await press(b, { item: 'Characters/mage.png' });
+  assert.equal(forged.status, 409);
+  assert.match(forged.json().error, /did not come from a Codex thread the board knows/);
+  assert.equal(await sendStateOf(b, 'Characters/mage.png'), undefined);
   assert.equal(fake.calls.length, 0);
+  assert.equal(events(b, 'sent').length, 0);
 });
 
 test('one press sends one verdict into the thread, and it is recorded', { skip }, async () => {
