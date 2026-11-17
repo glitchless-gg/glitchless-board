@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glitchless Board</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<!-- Everything this page needs is in this file or comes from the board's own server. Nothing loads from
+     anywhere else, and no sound plays until it is clicked. -->
+<style nonce="__NONCE__">
+  /* Glitchless: navy for text and frames, mint on navy, coral only for trouble. */
+  :root {
+    --navy: #14213d; --navy-2: #0e182e; --navy-3: #1d2e52;
+    --mint: #2ee6a6; --coral: #ff6b57; --mist: #f4f6fa; --white: #fff;
+    --panel: #fff; --border: #e0e5ee; --border-strong: #c9d1df;
+    --text: var(--navy); --text-2: #3b4966; --muted: #66758f;
+    --ok: #138a63; --ok-bg: #e3f5ee; --alert: #c8243c; --alert-bg: #fde8eb; --gold: #b5730a; --gold-bg: #fdf2dc;
+    --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --stage: #101726;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--mist); color: var(--text); font: 15px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+  button, input { font: inherit; }
+  code { font-family: var(--mono); font-size: .9em; background: #e9edf4; padding: 1px 5px; border-radius: 5px; }
+
+  header { position: sticky; top: 0; z-index: 5; background: var(--navy); color: var(--white); }
+  .bar { max-width: 1280px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0; }
+  .brand img { width: 34px; height: auto; display: block; flex: none; }
+  .word { font: 800 20px/1.1 var(--sans); letter-spacing: -.02em; white-space: nowrap; }
+  .word span { color: var(--mint); }
+  .game { color: #c5d0e4; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pill { font: 600 13px/1 var(--sans); padding: 7px 12px; border-radius: 999px; background: var(--navy-3); color: #dfe6f3; white-space: nowrap; }
+  .pill.live { background: var(--mint); color: var(--navy); }
+  .pill.bad { background: var(--coral); color: var(--navy); }
+  .pillbtn { background: transparent; border: 1px solid #3b4f7a; color: #dfe6f3; border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+  .pillbtn:hover { border-color: var(--mint); color: var(--white); }
+  /* One line of section links that scrolls sideways, so the header stays short in a narrow pane. */
+  nav { max-width: 1280px; margin: 0 auto; padding: 0 16px 10px; display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px; scrollbar-width: thin; scrollbar-color: #3b4f7a transparent; }
+  nav a { flex: none; white-space: nowrap; color: #c5d0e4; text-decoration: none; padding: 3px 10px; border: 1px solid #3b4f7a; border-radius: 999px; font-size: 13px; }
+  nav a:hover { color: var(--white); border-color: var(--mint); }
+  nav a b { color: var(--mint); font-weight: 600; margin-left: 4px; }
+
+  main { max-width: 1280px; margin: 0 auto; padding: 18px 16px 64px; }
+  .how { color: var(--text-2); margin: 0 0 18px; max-width: 78ch; }
+  .notice { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--coral); border-radius: 10px; padding: 10px 14px; margin: 0 0 18px; color: var(--text-2); }
+  section { margin: 0 0 34px; scroll-margin-top: 110px; }
+  h2 { font: 700 19px/1.2 var(--sans); margin: 0 0 2px; letter-spacing: -.01em; }
+  .from { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; align-items: start; }
+  .shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(480px, 100%), 1fr)); gap: 12px; align-items: start; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-width: 0; box-shadow: 0 1px 2px rgba(20,33,61,.04); }
+  .card.keep, .snd.keep { border-color: var(--ok); box-shadow: 0 0 0 1px var(--ok); }
+  .card.redo, .snd.redo { border-color: var(--alert); box-shadow: 0 0 0 1px var(--alert); }
+  .name { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+  .meta { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
+  .meta.id { font-family: var(--mono); font-size: 11.5px; }
+  .meta.stale { color: var(--gold); background: var(--gold-bg); border-radius: 6px; padding: 3px 8px; }
+  .stage { background: var(--stage); border-radius: 8px; display: flex; align-items: center; justify-content: center; min-height: 150px; padding: 8px; overflow: hidden; }
+  .stage img { max-width: 100%; max-height: 260px; display: block; image-rendering: pixelated; }
+  .shots .stage { padding: 0; min-height: 120px; }
+  .shots .stage img { width: 100%; max-height: none; image-rendering: auto; }
+  body[data-stage="light"] { --stage: #e4e8f0; }
+  body[data-stage="green"] { --stage: #2b3a2e; }
+  body[data-stage="check"] .stage { background: repeating-conic-gradient(#3a4257 0% 25%, #262d40 0% 50%) 0 0 / 16px 16px; }
+  .gone { color: var(--muted); font-size: 13px; padding: 16px; text-align: center; }
+  audio { width: 100%; height: 34px; }
+  .takes { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; border-top: 1px dashed var(--border-strong); padding-top: 8px; }
+  .take { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .take .stage { min-height: 72px; padding: 4px; }
+  .take .stage img { max-height: 90px; }
+  .verdict { display: flex; gap: 6px; flex-wrap: wrap; }
+  .btn { border: 1px solid var(--border-strong); border-radius: 8px; padding: 5px 12px; font-weight: 600; font-size: 13.5px; cursor: pointer; background: var(--white); color: var(--navy); }
+  .btn:hover:not(:disabled) { border-color: var(--navy); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.small { padding: 2px 8px; font-size: 12.5px; }
+  .btn.on.k, .btn.on.p { background: var(--ok); color: var(--white); border-color: var(--ok); }
+  .btn.on.r { background: var(--alert); color: var(--white); border-color: var(--alert); }
+  .btn.send { background: var(--navy); color: var(--white); border-color: var(--navy); }
+  .btn.play { width: 34px; padding: 5px 0; flex: none; }
+  .reply { font-size: 13px; border-left: 3px solid var(--mint); padding-left: 8px; overflow-wrap: anywhere; color: var(--text-2); }
+  input[type=text] { width: 100%; color: var(--text); background: var(--white); border: 1px solid var(--border-strong); border-radius: 8px; padding: 5px 9px; }
+  input[type=text]:focus, .btn:focus-visible, .pillbtn:focus-visible { outline: 2px solid var(--mint); outline-offset: 1px; }
+  .sounds { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 8px; align-items: start; }
+  .snd { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 6px 8px; min-width: 0; }
+  .snd .n { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+  .snd .n small { display: block; color: var(--muted); font-weight: 400; }
+  .snd input, .snd .stale { flex-basis: 100%; }
+  .filter { max-width: 320px; margin-bottom: 10px; }
+  .empty { color: var(--text-2); padding: 26px 0; max-width: 70ch; }
+  #msgs { margin: 0 0 24px; }
+  .msg { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--navy-3); border-radius: 10px; padding: 6px 12px; margin-top: 6px; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .msg b { font-weight: 600; }
+  .msg small { color: var(--muted); margin-left: 8px; }
+  footer { color: var(--muted); font-size: 13px; margin-top: 36px; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+  #toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: var(--navy); color: var(--white); border-radius: 999px; padding: 8px 18px; font-size: 14px; z-index: 9; box-shadow: 0 12px 30px rgba(20,33,61,.25); max-width: calc(100vw - 32px); }
+</style>
+</head>
+<body data-stage="dark">
+<header>
+  <div class="bar">
+    <div class="brand"><img src="/mark-dark.svg" alt=""><div class="word">Glitchless <span>Board</span></div><div class="game" id="project"></div></div>
+    <span id="waiting" class="pill"></span>
+    <span id="count" class="pill"></span>
+    <button id="stage" class="pillbtn" title="Change the background behind pictures">Background: dark</button>
+  </div>
+  <nav id="nav"></nav>
+</header>
+<main>
+  <p class="how">Mark anything <b>Keep</b> or <b>Redo</b>, and add a note if you like. Each click is saved in the board's record and goes to whichever agent is waiting, with how the thing was made. There is nothing to copy or paste.</p>
+  <div id="problems"></div>
+  <div id="msgs"></div>
+  <div id="root"></div>
+  <footer><span id="ver"></span><span id="mcp"></span><span>This page answers this computer only. Agents have no way to give a verdict, but anything that can click here can.</span></footer>
+</main>
+<div id="toast" hidden></div>
+<script nonce="__NONCE__">
+const BOOT = /*BOOT*/null;
+let DATA = null, marks = {}, messages = [];
+const painters = {};       // item id -> repaint that item from marks
+const sendPainters = {};   // item id -> repaint its Send to Codex row
+const $ = (id) => document.getElementById(id);
+function el(tag, cls, ...kids) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  for (const kid of kids) if (kid !== null && kid !== undefined && kid !== '') n.append(kid);
+  return n;
+}
+const slug = (s) => 's-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+function toast(text, ms = 2600) {
+  const t = $('toast');
+  t.textContent = text; t.hidden = false;
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => { t.hidden = true; }, ms);
+}
+const post = (path, body) => fetch(path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-board-owner': BOOT.token }, body: JSON.stringify(body) });
+
+// One click = one line in the record. The server answers with who was waiting for it.
+function push(id) {
+  const m = marks[id] || {};
+  count();
+  return post('/api/verdict', { item: id, v: m.v || null, take: m.take, note: m.note || '' })
+    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then((j) => toast(j.waiting.length ? 'Sent to ' + j.waiting.join(', ') : 'Saved. No agent is waiting, so it is held for the next one.'))
+    .catch(() => toast("Not saved: the board's server is not answering.", 6000));
+}
+
+function sendToCodex(id) {
+  return post('/api/send', { item: id })
+    .then(async (r) => { const j = await r.json(); toast(r.ok ? 'Sent to Codex.' : 'Not sent: ' + j.error, r.ok ? 2600 : 7000); })
+    .catch(() => toast("Not sent: the board's server is not answering.", 6000));
+}
+
+// One shared player for the short sounds, so two never overlap. Nothing plays until it is clicked.
+const player = new Audio();
+function play(src) { player.pause(); player.src = src; player.play().catch(() => {}); }
+
+const verdictWord = (m) => (m.v === 'pick' ? 'pick' : m.v === 'redo' ? 'Redo' : 'Keep');
+
+// The pictures and sounds of one take. small = an earlier take, shown as a thumbnail.
+function media(take, { link } = {}) {
+  return take.files.map((f) => {
+    if (!f.src) return el('div', 'gone', 'This file is no longer there: ' + f.name);
+    if (f.audio) { const a = el('audio'); a.controls = true; a.preload = 'none'; a.src = f.src; return a; }
+    const img = el('img'); img.loading = 'lazy'; img.alt = f.name; img.src = f.src;
+    const stage = el('div', 'stage', img);
+    if (!link) return stage;
+    const a = el('a', null, stage); a.href = f.src; a.target = '_blank'; a.rel = 'noopener'; a.title = 'Open at full size';
+    return a;
+  });
+}
+
+// Keep, Redo and a note for one item, and Pick for each earlier take. box is the card or row that takes the colour.
+function controls(it, box, { compact = false } = {}) {
+  const latest = it.takes[it.takes.length - 1].take;
+  const keep = el('button', 'btn k', 'Keep'); keep.title = 'Mark this one good'; keep.setAttribute('aria-label', 'Keep ' + it.name);
+  const redo = el('button', 'btn r', 'Redo'); redo.title = 'Ask for another take'; redo.setAttribute('aria-label', 'Redo ' + it.name);
+  const note = el('input'); note.type = 'text'; note.placeholder = 'Note (optional)'; note.setAttribute('aria-label', 'Note for ' + it.name);
+  const stale = el('div', 'meta stale'); stale.hidden = true;
+  const picks = [];
+  const live = () => { const m = marks[it.id]; return m && !m.stale ? m : null; };
+  let later = null;        // a note typed with no verdict is sent a moment later, unless a click takes it along
+  let hold = null;         // in a row of sounds, Redo waits a moment for its reason
+  const paint = () => {
+    const m = live(), v = m && m.v, all = marks[it.id];
+    box.classList.toggle('keep', v === 'keep' || v === 'pick'); box.classList.toggle('redo', v === 'redo');
+    keep.classList.toggle('on', v === 'keep'); redo.classList.toggle('on', v === 'redo');
+    for (const [take, b] of picks) b.classList.toggle('on', v === 'pick' && m.take === take);
+    if (document.activeElement !== note && !later && !hold) note.value = (m && m.note) || '';
+    stale.hidden = !(all && all.stale);
+    if (all && all.stale) stale.textContent = `Your ${verdictWord(all)} was for take ${all.take}. Take ${latest} is new.`;
+    // In a row of sounds the note opens only for Redo, so marking a column Keep never moves the next row.
+    if (compact) note.hidden = !(v === 'redo' || note.value);
+  };
+  const flush = () => { clearTimeout(later); clearTimeout(hold); later = hold = null; };
+  const set = (v, take) => {
+    const m = live();
+    const same = m && m.v === v && (v !== 'pick' || m.take === take);
+    marks[it.id] = same ? { v: null, note: note.value } : { v, take: v === 'pick' ? take : latest, note: note.value };
+    flush(); paint();
+    if (compact && !same && v === 'redo' && !note.value) { note.hidden = false; note.focus(); hold = setTimeout(() => { hold = null; marks[it.id].note = note.value; push(it.id); }, 8000); }
+    else push(it.id);
+  };
+  keep.addEventListener('click', () => set('keep'));
+  redo.addEventListener('click', () => set('redo'));
+  // A note typed before the click travels with the click. A note changed afterwards is sent by itself.
+  note.addEventListener('change', () => {
+    const m = live();
+    if (hold) { flush(); marks[it.id].note = note.value; push(it.id); return; }
+    clearTimeout(later);
+    later = setTimeout(() => { later = null; marks[it.id] = { ...(m || { v: null }), note: note.value }; push(it.id); paint(); }, m && m.v ? 0 : 1200);
+  });
+  note.addEventListener('keydown', (e) => { if (e.key === 'Enter') note.blur(); });
+  note.addEventListener('blur', () => { if (hold) { flush(); marks[it.id].note = note.value; push(it.id); } });
+  const pick = (take) => {
+    const b = el('button', 'btn small p', 'Pick take ' + take.take); b.title = 'Keep this take instead of the newest'; b.setAttribute('aria-label', `Pick take ${take.take} of ${it.name}`);
+    b.addEventListener('click', () => set('pick', take.take));
+    picks.push([take.take, b]);
+    return b;
+  };
+  painters[it.id] = paint;
+  return { keep, redo, note, stale, pick, paint };
+}
+
+function sendRow(it) {
+  // One press starts one new turn in the Codex thread that made this take, carrying the verdict and the note.
+  const btn = el('button', 'btn send', 'Send to Codex');
+  btn.addEventListener('click', () => sendToCodex(it.id));
+  const status = el('div', 'meta'), reply = el('div', 'reply');
+  const paint = (st) => {
+    btn.disabled = !st.can;
+    btn.textContent = st.working ? 'Codex is answering' : 'Send to Codex';
+    status.textContent = !st.on ? 'Sending to Codex is off on this board.'
+      : st.working ? `Your ${st.sent_verdict || 'verdict'} was sent.`
+      : st.can ? 'Sends this verdict into the Codex thread that made it. Uses one Codex turn.'
+      : st.sent_verdict ? `Your ${st.sent_verdict} was sent.` : 'Mark it Keep or Redo, then send.';
+    reply.textContent = st.reply ? 'Codex: ' + st.reply : '';
+    reply.hidden = !st.reply;
+  };
+  sendPainters[it.id] = paint; paint(it.send);
+  return [el('div', 'verdict', btn), status, reply];
+}
+
+function card(it, section) {
+  const box = el('div', 'card');
+  const c = controls(it, box);
+  const newest = it.takes[it.takes.length - 1];
+  box.append(...media(newest, { link: section.kind === 'captures' }));
+  box.append(el('div', 'name', it.name));
+  const by = newest.by === 'project' ? '' : ` · from ${newest.by}`;
+  box.append(el('div', 'meta', (it.takes.length > 1 || newest.take > 1 ? `Take ${newest.take}` : 'In the project') + by + (it.home ? ` · ${it.home}` : '')));
+  if (it.caption) box.append(el('div', 'meta', it.caption));
+  if (newest.note) box.append(el('div', 'meta', newest.note));
+  box.append(el('div', 'verdict', c.keep, c.redo), c.note, c.stale);
+  if (it.takes.length > 1) {
+    const row = el('div', 'takes');
+    for (const t of it.takes.slice(0, -1).reverse()) row.append(el('div', 'take', ...media(t), el('div', 'meta', `Take ${t.take}` + (t.by === 'project' ? '' : ` · ${t.by}`)), c.pick(t)));
+    box.append(row);
+  }
+  const id = el('div', 'meta id', it.id); id.title = 'The id agents use for this item';
+  box.append(id);
+  if (it.send) box.append(...sendRow(it));
+  c.paint();
+  return box;
+}
+
+function soundRow(it) {
+  const row = el('div', 'snd');
+  const c = controls(it, row, { compact: true });
+  const file = it.takes[it.takes.length - 1].files[0];
+  const go = el('button', 'btn play', '▶'); go.setAttribute('aria-label', 'Play ' + it.name); go.disabled = !file || !file.src;
+  go.addEventListener('click', () => play(file.src));
+  const name = el('div', 'n', it.name, it.caption ? el('small', null, it.caption) : null); name.title = it.id;
+  row.append(go, name, c.keep, c.redo, c.note, c.stale);
+  c.paint();
+  return row;
+}
+
+function render() {
+  const root = $('root'), nav = $('nav');
+  root.replaceChildren(); nav.replaceChildren();
+  for (const k of Object.keys(painters)) delete painters[k];
+  for (const k of Object.keys(sendPainters)) delete sendPainters[k];
+  const box = $('problems'); box.replaceChildren();
+  for (const p of DATA.problems || []) box.append(el('div', 'notice', p));
+  if (!DATA.sections.length) {
+    root.append(el('p', 'empty', 'Nothing on the board yet. Name the folders that hold your pictures, captures and sounds under "sections" in glitchless.board.json, or have an agent post a take with the board_post tool.'));
+    return;
+  }
+  for (const s of DATA.sections) {
+    const id = slug(s.title);
+    const link = el('a', null, s.title, el('b', null, String(s.items.length))); link.href = '#' + id;
+    nav.append(link);
+    const what = s.kind === 'posts' ? 'Posted by agents, newest first' : s.missing ? 'Its folder is not there' : `${s.kind[0].toUpperCase() + s.kind.slice(1)} in the project`;
+    const sec = el('section', null, el('h2', null, s.title), el('div', 'from', `${what} · ${s.items.length} ${s.items.length === 1 ? 'item' : 'items'}`));
+    sec.id = id;
+    if (s.kind === 'sounds') {
+      const list = el('div', 'sounds'), rows = [];
+      for (const it of s.items) { const row = soundRow(it); rows.push([it, row]); list.append(row); }
+      if (s.items.length > 8) {
+        const filter = el('input', 'filter'); filter.type = 'text'; filter.placeholder = 'Filter by name or words';
+        filter.addEventListener('input', () => { const q = filter.value.toLowerCase(); for (const [it, row] of rows) row.hidden = !(it.name + ' ' + (it.caption || '')).toLowerCase().includes(q); });
+        sec.append(filter);
+      }
+      sec.append(list);
+    } else {
+      const grid = el('div', s.kind === 'captures' ? 'shots' : 'grid');
+      for (const it of s.items) grid.append(card(it, s));
+      sec.append(grid);
+    }
+    root.append(sec);
+  }
+}
+
+// What the agents have said to each other, newest first. Shown so the owner can read every word.
+function renderMessages() {
+  const box = $('msgs'); box.replaceChildren();
+  if (!messages.length) return;
+  box.append(el('h2', null, 'Messages between agents'), el('div', 'from', 'Left on the board by agents for each other. They are not verdicts, they start nothing, and the name on each is whatever its sender typed.'));
+  for (const m of [...messages].reverse().slice(0, 12)) {
+    box.append(el('div', 'msg', el('b', null, `${m.from} to ${m.to}`), el('small', null, new Date(m.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })), el('div', null, m.text)));
+  }
+}
+function count() {
+  const all = DATA ? DATA.sections.flatMap((s) => s.items) : [];
+  const n = all.filter((it) => { const m = marks[it.id]; return m && m.v && !m.stale; }).length;
+  $('count').textContent = `${n} marked of ${all.length}`;
+}
+function showWaiting(names) {
+  const w = $('waiting');
+  w.textContent = names.length ? 'Waiting for your click: ' + names.join(', ') : 'No agent is waiting';
+  w.className = 'pill' + (names.length ? ' live' : '');
+  w.title = names.length ? 'A click goes to them at once.' : 'Verdicts are held in the record for the next agent that asks.';
+}
+async function load() {
+  DATA = await (await fetch('/api/state')).json();
+  marks = DATA.marks || {};
+  messages = DATA.messages || []; renderMessages();
+  $('project').textContent = DATA.project;
+  document.title = DATA.project + ' · Glitchless Board';
+  $('ver').textContent = 'glitchless-board ' + DATA.version;
+  $('mcp').textContent = `Agents reach this board at http://127.0.0.1:${DATA.port}/mcp`;
+  render(); count(); showWaiting(DATA.waiting || []);
+}
+
+const stages = ['dark', 'light', 'check', 'green'];
+function setStage(name) {
+  document.body.dataset.stage = name;
+  $('stage').textContent = 'Background: ' + (name === 'check' ? 'checker' : name);
+  try { localStorage.setItem('glitchless-board.stage', name); } catch {}
+}
+$('stage').addEventListener('click', () => setStage(stages[(stages.indexOf(document.body.dataset.stage) + 1) % stages.length]));
+try { const saved = localStorage.getItem('glitchless-board.stage'); if (stages.includes(saved)) setStage(saved); } catch {}
+
+// The live link: other pages' clicks, new takes from agents, messages, and who is waiting.
+function listen() {
+  const es = new EventSource('/api/events');
+  es.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (m.type === 'waiters') showWaiting(m.waiting);
+    else if (m.type === 'verdict') { if (m.mark) marks[m.item] = m.mark; else delete marks[m.item]; if (painters[m.item]) painters[m.item](); count(); }
+    else if (m.type === 'message') { messages.push(m.message); renderMessages(); toast(`${m.message.from} left a message for ${m.message.to}.`); }
+    else if (m.type === 'send') { if (sendPainters[m.item] && m.send) sendPainters[m.item](m.send); }
+    else if (m.type === 'post') load().then(() => toast('A new take arrived from an agent.'));
+  };
+  es.onerror = () => { const w = $('waiting'); w.textContent = "The board's server is not answering"; w.className = 'pill bad'; };
+}
+
+// The browser's built-in WebMCP, where it exists: one tool an agent looking at this page can call. Reading
+// only. Verdicts stay with the clicks.
+try {
+  const mc = document.modelContext;
+  if (mc && typeof mc.registerTool === 'function') {
+    mc.registerTool({
+      name: 'board_list_waiting',
+      description: 'List the ids of the items on this board that have no verdict yet.',
+      inputSchema: { type: 'object', properties: {} },
+      execute: async () => ({ content: [{ type: 'text', text: JSON.stringify(DATA.sections.flatMap((s) => s.items.map((it) => it.id)).filter((id) => { const m = marks[id]; return !m || !m.v || m.stale; }).slice(0, 200)) }] }),
+    });
+  }
+} catch {}
+
+load().then(listen);
+</script>
+</body>
+</html>

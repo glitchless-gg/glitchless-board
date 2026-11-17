@@ -1,0 +1,46 @@
+{
+  "name": "glitchless-board",
+  "version": "0.1.0",
+  "description": "One small local board per game project, where the coding agents you build with (Claude Code, Codex, Cursor) meet. They post pictures, sounds and captures; you mark them Keep or Redo on a local page; each verdict reaches the agent that is waiting. MCP tools and a wait command. It starts no agent by itself.",
+  "keywords": [
+    "gamedev",
+    "game-development",
+    "game-assets",
+    "review",
+    "coding-agent",
+    "multi-agent",
+    "mcp",
+    "claude-code",
+    "codex",
+    "cursor",
+    "pixel-art",
+    "game-audio"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "bin": {
+    "glitchless-board": "bin/glitchless-board.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "ui",
+    "docs/record.md",
+    "SKILL.md",
+    "NOTICE.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "prepublishOnly": "npm test"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2"
+  }
+}
