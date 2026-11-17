@@ -163,6 +163,10 @@ const tomlStep = (file, table, values) => {
 export function harnessPlans({ root, port, home = os.homedir(), codexHome = process.env.CODEX_HOME || path.join(home, '.codex') }) {
   const url = `http://127.0.0.1:${port}/mcp`;
   const toml = { url, default_tools_approval_mode: 'approve' };
+  let folder = root;
+  try {
+    folder = fs.realpathSync(root); // Codex compares against the folder's real path
+  } catch {}
   return [
     {
       flag: 'claude',
@@ -187,7 +191,10 @@ export function harnessPlans({ root, port, home = os.homedir(), codexHome = proc
       scope: 'this project only; Codex reads it once it trusts the folder',
       steps: [tomlStep(path.join(root, '.codex', 'config.toml'), `mcp_servers.${SERVER_NAME}`, toml)],
       why: ['"approve" lets a thread use the board\'s tools when nobody is there to approve each call.'],
-      then: [],
+      then: [
+        'Codex reads this file only in a folder it trusts. Open the folder in Codex once and accept its trust prompt.',
+        `Or trust it for one headless run by adding: -c 'projects={${JSON.stringify(folder)}={trust_level="trusted"}}'`,
+      ],
     },
     {
       flag: 'codex-global',
@@ -203,7 +210,7 @@ export function harnessPlans({ root, port, home = os.homedir(), codexHome = proc
       scope: 'this project only',
       steps: [jsonStep(path.join(root, '.cursor', 'mcp.json'), { mcpServers: { [SERVER_NAME]: { url } } }), jsonStep(path.join(root, '.cursor', 'cli.json'), { permissions: { allow: [`Mcp(${SERVER_NAME}:*)`], deny: [] } })],
       why: ["The first file is the server. The second allows its tools and nothing else, so a run with nobody watching doesn't reject them."],
-      then: [`Then approve the server for this folder yourself: cursor-agent mcp enable ${SERVER_NAME}`],
+      then: [`Then approve the server for this folder yourself: cursor-agent mcp enable ${SERVER_NAME}`, 'A headless run also needs the folder trusted: cursor-agent -p --trust "..."'],
     },
     {
       flag: 'cursor-app',

@@ -195,7 +195,7 @@ npx glitchless-board init --claude
 
 Then restart the harness, because a running app does not see a server added after it started. Use a local session: a cloud session runs on another machine and cannot reach a board on your computer.
 
-The server is saved under the name `glitchless_board`, with an underscore. Claude Code's permission rules and the examples in Codex's documentation use underscores in server names. Cursor's documentation does not say, and this name has not been tried there.
+The server is saved under the name `glitchless_board`, with an underscore. That name has been used with all three command-line harnesses.
 
 ### Claude Code
 
@@ -230,7 +230,7 @@ claude -p "List what is waiting on the board" --strict-mcp-config --mcp-config '
 
 ### Codex
 
-`--codex` writes `.codex/config.toml` in the game's folder, which Codex reads once it trusts the folder. `--codex-global` adds the same table to Codex's own `config.toml`, for every project.
+`--codex` writes `.codex/config.toml` in the game's folder:
 
 ```toml
 [mcp_servers.glitchless_board]
@@ -238,7 +238,15 @@ url = "http://127.0.0.1:8792/mcp"
 default_tools_approval_mode = "approve"
 ```
 
-`"approve"` lets a thread use the board's tools when nobody is there to approve each call. The Codex app reads its servers when it starts, so restart it. `codex mcp remove glitchless_board` undoes the global entry. Codex's own settings hold one address per name, so two games with boards running at once need two ports and an entry each.
+`"approve"` lets a thread use the board's tools when nobody is there to approve each call, which matters when your approval policy is "never".
+
+Codex reads a project's file only in a folder it trusts. Until then `codex mcp list` in that folder does not show the server. Open the folder in Codex once and accept its trust prompt, or trust it for one headless run on the command line. `init` prints this setting with your folder's path:
+
+```bash
+codex exec -s read-only -c 'projects={"/path/to/my-game"={trust_level="trusted"}}' "Call board_list and tell me what is waiting on the board"
+```
+
+`--codex-global` adds the same table to Codex's own `config.toml` instead, for every project, and needs no trust. The Codex app reads its servers when it starts, so restart it. `codex mcp remove glitchless_board` undoes the global entry. Codex's own settings hold one address per name, so two games with boards running at once need two ports and an entry each.
 
 ### Cursor
 
@@ -262,6 +270,14 @@ Then approve the server for the folder yourself. `init` prints this and does not
 cursor-agent mcp enable glitchless_board
 ```
 
+To check it, with the board running, from the game's folder (`--trust` trusts the folder for a run with nobody watching):
+
+```bash
+cursor-agent -p --trust "Call board_list and tell me what is waiting on the board"
+```
+
+`cursor-agent --model <name>` also saves that model as your default for later runs, so leave `--model` off unless you mean to change it.
+
 The Cursor app is separate: `--cursor-app` adds the server to `~/.cursor/mcp.json`. Use a local chat there.
 
 ### What has been seen to work
@@ -276,7 +292,7 @@ This package was ported from a prototype. On the prototype, in November 2026:
 | Cursor command line | Yes, with the allow rule | Yes | No |
 | Cursor app | Yes, in a local chat, with the entry in its own settings | Yes | No |
 
-Codex and Cursor get a verdict or a message when they next wait, or when you send them a turn yourself. Every message in those runs went to Claude Code: a harness other than Claude Code receiving one has not been tried. Nor has a Redo answered by a newly made take, which is the loop this tool is for.
+Codex and Cursor get a verdict or a message when they next wait, or when you send them a turn yourself. Every message in those runs went to Claude Code. A Redo answered by a newly made take, which is the loop this tool is for, has not been tried, there or here.
 
 In this package, the tests drive the MCP endpoint with the official MCP client, and Claude Code has been connected to it (November 2026, Claude Code 2.1, macOS):
 
@@ -284,7 +300,13 @@ In this package, the tests drive the MCP endpoint with the official MCP client, 
 - A Redo given on the page while that agent was away reached it on its next `board_wait`. A click ended a `board_wait` that was open.
 - A `wait` command running in the background of a Claude Code session ended on a click, with the verdict and the item's context, and woke the session.
 
-Not run with this package: an interactive Claude Code session started in the folder (its trust prompt, then the server's approval), and Codex or Cursor in any form. Codex's project-level `.codex/config.toml` comes from Codex's documentation; the prototype used Codex's own file.
+Codex's and Cursor's command lines have been connected to it too (November 2026, codex-cli 0.166 and cursor-agent 2026.11, macOS, a small model in each):
+
+- **Codex:** after `init --codex`, with the folder trusted for the run, a headless `codex exec` listed the board, posted a take, left Cursor a message and waited, under an approval policy of "never". On its next `board_wait` it got a Redo and a Keep given on the page, and Cursor's answer. Those runs gave the trust in its dotted form, `-c 'projects./path/to/my-game.trust_level="trusted"'`, which works for a path with no dot in it. The form shown above was checked with `codex mcp list`, with and without a dot in the path.
+- **Cursor:** after `init --cursor` and `cursor-agent mcp enable glitchless_board`, a headless `cursor-agent -p --trust` listed the board, posted a take, got Codex's message from `board_wait` and answered it. On its next `board_wait` it got both verdicts.
+- A message has now gone both ways between two harnesses that are not Claude Code.
+
+Not run with this package: an interactive Claude Code session started in the folder (its trust prompt, then the server's approval), the Codex and Cursor apps, and `--codex-global` and `--cursor-app`.
 
 ## Send to Codex (optional, off by default)
 
@@ -359,7 +381,7 @@ Read these before you rely on it.
 - **It starts no agent**, and it does not make, import or change anything in the game. Keep records a verdict. Putting the kept file into the engine is still the agent's job.
 - **Pictures and sound only.** No 3D model viewer, no sprite-sheet animation, no video.
 - **A new take must be saved inside a configured folder** before it can be posted, so it shows as a card of its own until it is posted as a take of another item.
-- **Run with one real harness so far.** Claude Code, headless and through `wait`. See "What has been seen to work".
+- **Run with the three command-line harnesses, headless.** Not yet with the Codex or Cursor apps, or an interactive Claude Code session. See "What has been seen to work".
 
 ## How it works
 

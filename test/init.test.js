@@ -78,6 +78,8 @@ test('without a flag, init changes no harness: it only shows what each needs', (
   assert.match(out, /\[mcp_servers\.glitchless_board\]\s+url = "http:\/\/127\.0\.0\.1:8792\/mcp"\s+default_tools_approval_mode = "approve"/);
   assert.match(out, /"Mcp\(glitchless_board:\*\)"/);
   assert.match(out, /cursor-agent mcp enable glitchless_board/);
+  // Codex reads a project's file only in a folder it trusts, so init prints the setting that trusts this one.
+  assert.ok(out.includes(`-c 'projects={${JSON.stringify(game)}={trust_level="trusted"}}'`), 'the one-run trust setting, with the real path');
   // It ends by saying to restart, and that the session must be local.
   const last = out.trimEnd().split('\n').slice(-2);
   assert.match(last[0], /^Then restart the harness/);
