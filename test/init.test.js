@@ -74,6 +74,7 @@ test('without a flag, init changes no harness: it only shows what each needs', (
   // Each harness's server entry, and the approval or allow rule it needs.
   assert.match(out, /"type": "http",\s+"url": "http:\/\/127\.0\.0\.1:8792\/mcp"/);
   assert.match(out, /"mcp__glitchless_board__\*"/);
+  assert.match(out, /accepted its trust prompt\. Until then it lists the server as pending/);
   assert.match(out, /\[mcp_servers\.glitchless_board\]\s+url = "http:\/\/127\.0\.0\.1:8792\/mcp"\s+default_tools_approval_mode = "approve"/);
   assert.match(out, /"Mcp\(glitchless_board:\*\)"/);
   assert.match(out, /cursor-agent mcp enable glitchless_board/);

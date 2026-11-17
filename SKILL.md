@@ -29,7 +29,7 @@ glitchless-board init
 
 It writes `glitchless.board.json` from the folders that hold pictures and sounds, then prints what each harness needs to reach the board. Read the file with the user and fix it: each section is a `folder`, a `kind` (`pictures`, `captures` or `sounds`) and a `title`. Add `.glitchless/` to `.gitignore`.
 
-Connecting a harness changes that harness's settings, so it is the user's call. `init` changes nothing unless a flag is given: `--claude`, `--codex`, `--codex-global`, `--cursor`, `--cursor-app`. Show the user what it printed and let them choose. Never pass `--codex-global` or `--cursor-app` without being asked: those write outside the project. After a change, the harness has to be restarted, and the session has to be a local one: a cloud session cannot reach a board on the user's computer.
+Connecting a harness changes that harness's settings, so it is the user's call. `init` changes nothing unless a flag is given: `--claude`, `--codex`, `--codex-global`, `--cursor`, `--cursor-app`. Show the user what it printed and let them choose. Never pass `--codex-global` or `--cursor-app` without being asked: those write outside the project. After a change, the harness has to be restarted, and the session has to be a local one: a cloud session cannot reach a board on the user's computer. Claude Code also holds a project's server as pending until the user has accepted the folder's trust prompt.
 
 ## 3. Post, then wait for the verdict
 

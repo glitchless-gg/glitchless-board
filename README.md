@@ -207,13 +207,19 @@ The server is saved under the name `glitchless_board`, with an underscore. Claud
 { "mcpServers": { "glitchless_board": { "type": "http", "url": "http://127.0.0.1:8792/mcp" } } }
 ```
 
-`.claude/settings.local.json`, which approves that server for this folder and allows its tools and the wait command without a prompt each time:
+`.claude/settings.local.json`, which allows the board's tools and the wait command without a prompt each time, and approves the server for this folder:
 
 ```json
 {
   "enabledMcpjsonServers": ["glitchless_board"],
   "permissions": { "allow": ["mcp__glitchless_board__*", "Bash(npx -y glitchless-board wait *)", "Bash(glitchless-board wait *)"] }
 }
+```
+
+Claude Code applies that approval once you have opened the folder in it and accepted its trust prompt. Until then `claude mcp list` shows the server as "Pending approval", and an interactive session asks before connecting it. A headless run connects it either way, so this checks the setup, with the board running, from the game's folder:
+
+```bash
+claude -p "Call board_list and tell me what is waiting on the board" --model haiku
 ```
 
 For one run without saving anything:
@@ -272,7 +278,13 @@ This package was ported from a prototype. On the prototype, in November 2026:
 
 Codex and Cursor get a verdict or a message when they next wait, or when you send them a turn yourself. Every message in those runs went to Claude Code: a harness other than Claude Code receiving one has not been tried. Nor has a Redo answered by a newly made take, which is the loop this tool is for.
 
-In this package, the tests drive the MCP endpoint with the official MCP client. No harness has been connected to this package itself yet. Two parts of what `init` writes come from each harness's documentation and were not part of the prototype's runs: Claude Code's project files (the prototype passed the same server and allow rule on the command line), and Codex's project-level `.codex/config.toml` (the prototype used Codex's own file).
+In this package, the tests drive the MCP endpoint with the official MCP client, and Claude Code has been connected to it (November 2026, Claude Code 2.1, macOS):
+
+- After `init --claude` in a fresh sample game, a headless run (`claude -p`, started in that folder) listed the board, posted a take, left a message and waited, using only the two files `init` wrote. With the settings file taken away, the same call was refused, so the allow rule is what lets the tools through.
+- A Redo given on the page while that agent was away reached it on its next `board_wait`. A click ended a `board_wait` that was open.
+- A `wait` command running in the background of a Claude Code session ended on a click, with the verdict and the item's context, and woke the session.
+
+Not run with this package: an interactive Claude Code session started in the folder (its trust prompt, then the server's approval), and Codex or Cursor in any form. Codex's project-level `.codex/config.toml` comes from Codex's documentation; the prototype used Codex's own file.
 
 ## Send to Codex (optional, off by default)
 
@@ -347,7 +359,7 @@ Read these before you rely on it.
 - **It starts no agent**, and it does not make, import or change anything in the game. Keep records a verdict. Putting the kept file into the engine is still the agent's job.
 - **Pictures and sound only.** No 3D model viewer, no sprite-sheet animation, no video.
 - **A new take must be saved inside a configured folder** before it can be posted, so it shows as a card of its own until it is posted as a take of another item.
-- **Not yet run with a real harness.** See "What has been seen to work".
+- **Run with one real harness so far.** Claude Code, headless and through `wait`. See "What has been seen to work".
 
 ## How it works
 

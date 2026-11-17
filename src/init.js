@@ -175,8 +175,11 @@ export function harnessPlans({ root, port, home = os.homedir(), codexHome = proc
           permissions: { allow: [`mcp__${SERVER_NAME}__*`, 'Bash(npx -y glitchless-board wait *)', 'Bash(glitchless-board wait *)'] },
         }),
       ],
-      why: ['The first file is the server. The second approves it for this folder, and allows its tools and the wait command without a prompt each time.'],
-      then: [],
+      why: ['The first file is the server. The second allows its tools and the wait command without a prompt each time, and approves the server for this folder.'],
+      then: [
+        'Claude Code applies that approval once you have opened this folder in it and accepted its trust prompt. Until then it lists the server as pending.',
+        'A headless run (claude -p) started in this folder connects the server either way.',
+      ],
     },
     {
       flag: 'codex',
